@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Block Engine</title>
+    <style>
+        :root {
+            --bg-color: #1e1e2e;
+            --panel-bg: #252538;
+            --accent-color: #89b4fa;
+            --text-color: #cdd6f4;
+            --block-move: #fab387;
+            --block-action: #a6e3a1;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: var(--panel-bg);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #313244;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--accent-color);
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Panels */
+        .panel {
+            background-color: var(--panel-bg);
+            margin: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #313244;
+        }
+
+        #toolbox {
+            width: 250px;
+            padding: 15px;
+        }
+
+        #workspace {
+            flex: 1;
+            padding: 15px;
+            border: 2px dashed #45475a;
+            overflow-y: auto;
+        }
+
+        #game-view {
+            width: 350px;
+            padding: 15px;
+            align-items: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #313244;
+            padding-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Blocks styling */
+        .block {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #11111b;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.1s ease;
+        }
+
+        .block:hover {
+            transform: scale(1.02);
+        }
+
+        .block-move { background-color: var(--block-move); }
+        .block-action { background-color: var(--block-action); }
+
+        .workspace-block {
+            cursor: default;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #11111b;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        /* Game Grid Layout */
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(5, 50px);
+            grid-template-rows: repeat(5, 50px);
+            gap: 2px;
+            background-color: #313244;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .cell {
+            background-color: #45475a;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            position: relative;
+        }
+
+        .cell.wall { background-color: #11111b; }
+        .cell.goal { background-color: #a6e3a1; }
+
+        /* Controls */
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        button.btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-run { background-color: #a6e3a1; color: #11111b; }
+        .btn-run:hover { background-color: #94e2d5; }
+        .btn-clear { background-color: #f38ba8; color: #11111b; }
+        .btn-clear:hover { background-color: #eba0ac; }
+
+        #dialogue-box {
+            margin-top: 15px;
+            width: 100%;
+            min-height: 50px;
+            background-color: #11111b;
+            border-radius: 6px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #45475a;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⚔️ Mini RPG Block Engine</h1>
+        <div>Click blocks to add them to your engine sequence</div>
+    </header>
+
+    <div class="main-container">
+        <!-- 1. TOOLBOX PANE -->
+        <div class="panel" id="toolbox">
+            <h2>Blocks</h2>
+            <div class="block block-move" data-action="move-up">⬆️ Move Up</div>
+            <div class="block block-move" data-action="move-down">⬇️ Move Down</div>
+            <div class="block block-move" data-action="move-left">⬅️ Move Left</div>
+            <div class="block block-move" data-action="move-right">➡️ Move Right</div>
+            <div class="block block-action" data-action="action-loot">🎒 Search Chest</div>
+        </div>
+
+        <!-- 2. WORKSPACE PANE -->
+        <div class="panel" id="workspace">
+            <h2>Your Script Engine</h2>
+        </div>
+
+        <!-- 3. RPG LIVE ENGINE VIEW -->
+        <div class="panel" id="game-view">
+            <h2>Game View</h2>
+            <div id="grid"></div>
+            
+            <div class="controls">
+                <button class="btn btn-run" onclick="runEngine()">▶ Run Code</button>
+                <button class="btn btn-clear" onclick="clearWorkspace()">🗑️ Clear</button>
+            </div>
+
+            <div id="dialogue-box">System Status: Ready. Assembly complete.</div>
+        </div>
+    </div>
+
+    <script>
+        // Engine Game State Configurations
+        const GRID_SIZE = 5;
+        let playerPos = { x: 0, y: 4 }; // Start bottom-left
+        const chestPos = { x: 4, y: 0 };  // Chest top-right
+        
+        // Simple map layout grid: 0 = Empty floor, 1 = Wall block
+        const map = [,
+ ,
+ ,
+ ,
+            [0, 0, 0, 0, 0]
+        ];
+
+        const scriptSequence = [];
+
+        // Generate the Grid layout visually
+        function renderGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    
+                    if (map[y][x] === 1) {
+                        cell.classList.add('wall');
+                    }
+                    
+                    // Render interactive assets
+                    if (x === playerPos.x && y === playerPos.y) {
+                        cell.innerText = '🧙‍♂️';
+                    } else if (x === chestPos.x && y === chestPos.y) {
+                        cell.innerText = '🧰';
+                    }
+                    
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        // Add blocks from toolbox to workflow engine
+        document.querySelectorAll('#toolbox .block').forEach(block => {
+            block.addEventListener('click', () => {
+                const action = block.getAttribute('data-action');
+                const label = block.innerText;
+                const typeClass = block.classList.contains('block-move') ? 'block-move' : 'block-action';
+                
+                scriptSequence.push(action);
+                
+                const wsBlock = document.createElement('div');
+                wsBlock.className = `block ${typeClass} workspace-block`;
+                
+                // Track current block index for proper removal logic
+                const blockIdx = scriptSequence.length - 1;
+                wsBlock.innerHTML = `${label} <button class="delete-btn" onclick="removeBlock(this, ${blockIdx})">❌</button>`;
+                
+                document.getElementById('workspace').appendChild(wsBlock);
+            });
+        });
+
+        function removeBlock(buttonEl, index) {
+            buttonEl.parentElement.remove();
+            scriptSequence.splice(index, 1);
+        }
+
+        function clearWorkspace() {
+            scriptSequence.length = 0;
+            const workspace = document.getElementById('workspace');
+            workspace.innerHTML = '<h2>Your Script Engine</h2>';
+            logMessage("System Status: Script cleared.");
+            resetGame();
+        }
+
+        function resetGame() {
+            playerPos = { x: 0, y: 4 };
+            renderGrid();
+        }
+
+        function logMessage(text) {
+            document.getElementById('dialogue-box').innerText = text;
+        }
+
+        // Asynchronous game loop interpreter to process block steps step-by-step
+        async function runEngine() {
+            resetGame();
+            logMessage("Engine started compiling scripts...");
+            
+            for (let i = 0; i < scriptSequence.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 600)); // Delay between action steps
+                const action = scriptSequence[i];
+                let nextX = playerPos.x;
+                let nextY = playerPos.y;
+
+                if (action === 'move-up') nextY--;
+                else if (action === 'move-down') nextY++;
+                else if (action === 'move-left') nextX--;
+                else if (action === 'move-right') nextX++;
+                else if (action === 'action-loot') {if (playerPos.x === chestPos.x && playerPos.y === chestPos.y) {
+logMessage("🎉 You successfully unlocked the legendary chest! Victory!");
+} else {
+logMessage("💨 You searched the floor, but found nothing here.");
+}
+continue;
+}
+// Boundary verification checks and collision mechanics
+if (nextX >= 0 && nextX < GRID_SIZE && nextY >= 0 && nextY < GRID_SIZE) {
+if (map[nextY][nextX] !== 1) {
+playerPos.x = nextX;
+playerPos.y = nextY;
+logMessage(Engine step ${i + 1}: Character moved.);
+} else {
+logMessage(⚠️ Blocked! Met an obstacle at grid coordinates (${nextX}, ${nextY}));
+}
+} else {
+logMessage(💥 Error: Out of map limits!);
+}
+renderGrid();
+}
+}
+// Initialize execution setup
+renderGrid();
